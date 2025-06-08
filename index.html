@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://kit.fontawesome.com/e9fe44bd19.js" crossorigin="anonymous"></script>
+    <title>Jellyfin Multiclient</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        :root {
+            box-sizing: border-box;
+			interpolate-size: allow-keywords;
+        }
+        .restricted {
+            margin: 0 auto;
+            max-width: 800px;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="password"], input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .success {
+            border-left-color: #28a745;
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .content-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            background-color: #f9f9f9;
+            width: 148px;
+            text-align: center;
+        }
+        .content-item a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .content-item a:hover {
+            text-decoration: underline;
+        }
+        .library {
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            flex-direction: row;
+        }
+        @keyframes tilt-shaking {
+            0% { transform: rotate(0deg); }
+            25% { transform: rotate(15deg); }
+            50% { transform: rotate(0deg); }
+            75% { transform: rotate(-15deg); }
+            100% { transform: rotate(0deg); }
+        }
+        .shaking {
+            animation: tilt-shaking 0.25s infinite;
+        }
+        .spoiler {
+            height: 0;
+            overflow: hidden;
+            transition: height 0.5s ease;
+        }
+
+        .spoiler.open {
+            height: auto;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container restricted" onclick="document.getElementById('main-spoiler').classList.add('open');" style="cursor: pointer;">
+        <h1 style="margin:0;">Jellyfin Multiclient</h1>
+    </div>
+    <div class="spoiler open" id="main-spoiler">
+        <div class="container restricted">
+            <form id="addServerForm">
+                <div class="form-group">
+                    <label for="baseUrl">Base URL:</label>
+                    <input type="text" id="baseUrl" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" required>
+                </div>
+                
+                <button type="submit" id="submitBtnServer">Add Server Connection</button>
+            </form>
+            
+            <br>
+
+            <form id="configForm">
+                <div class="form-group">
+                    <label for="config">Configuration:</label>
+                    <textarea id="config" rows="12" style="width: 100%; background-color: #f5f5f5; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+                </div>
+                <button type="submit" id="submitBtn">Load Content</button>
+            </form>
+            
+            <div id="result" class="result" style="display: none;"></div>
+        </div>
+    </div>
+    <div class="container restricted">
+        <input type="text" id="searchInput" placeholder="Search content..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;" oninput="filterContent()">
+    </div>
+
+    <div id="contentList" class="content-list container" style="margin-top: 20px;">
+        <h2>Fetched Content</h2>
+        <!-- Content will be dynamically populated here -->
+        <p>No content available yet.</p>
+    </div>
+
+    <script>
+        // Global base URL variable
+        if (!document.fakeCookie) {
+            document.fakeCookie = "";
+        }
+        var linking = "";
+        let baseUrl = '';
+        const libraryTypeCollectionTypes = {
+            "movies": "moviemovies",
+            "tvshows": "tvshowseries",
+            "music": "none",
+            "books": "none",
+            "playlists": "none",
+            "boxsets": "none",
+        }
+        const libraryTypeFilters = {
+            "music": ["MusicAlbum"]
+        };
+        const content = [
+
+        ];
+        const serverNames = {};
+        function setCookie(cname, cvalue, exdays = 365) {
+            const d = new Date();
+            d.setTime(d.getTime() + (exdays * 24 * 60 * 60 * 1000));
+            let expires = "expires="+d.toUTCString();
+            if(window.location.protocol === "file:")
+                document.fakeCookie += cname + "=" + btoa(cvalue) + ";";
+            document.cookie = cname + "=" + btoa(cvalue) + ";" + expires + ";path=/";
+        }
+
+        function getCookie(cname) {
+            let name = cname + "=";
+            let ca = document.cookie.split(';');
+            if(window.location.protocol === "file:")
+                ca = document.fakeCookie.split(';');
+            for(let i = 0; i < ca.length; i++) {
+                let c = ca[i];
+                while (c.charAt(0) == ' ') {
+                c = c.substring(1);
+                }
+                if (c.indexOf(name) == 0) {
+                return atob(c.substring(name.length, c.length));
+                }
+            }
+            return "";
+    	}
+
+        function filterContent() {
+            const searchInput = document.getElementById('searchInput').value.toLowerCase();
+            const contentList = document.getElementById('contentList');
+            const items = contentList.querySelectorAll('.content-item');
+            items.forEach(item => {
+                const itemName = item.dataset.name.toLowerCase();
+                if (itemName.includes(searchInput)) {
+                    item.classList.remove('hidden');
+                } else {
+                    item.classList.add('hidden');
+                }
+            });
+            if(searchInput != "") {
+                document.querySelectorAll('.library.spoiler').forEach(item => {
+                    if(!item.classList.contains('open')) {
+                        item.classList.add('open');
+                        item.classList.add('temp-open');
+                    }
+                });
+            } else {
+                document.querySelectorAll('.spoiler.temp-open').forEach(item => {
+                    item.classList.remove('open');
+                    item.classList.remove('temp-open');
+                });
+            }
+            document.querySelectorAll('.library-main').forEach(item => {
+                if(item.querySelectorAll('.content-item:not(.hidden)').length === 0) {
+                    item.classList.add('hidden');
+                } else {
+                    item.classList.remove('hidden');
+                }
+            });
+        }
+
+        async function getItemsFromParent(token, userId, parentId) {
+            const itemsRequestData = {
+                'userId': userId,
+                'parentId': parentId
+            };
+            const itemsResult = await sendPostRequest('Items', itemsRequestData, "GET", token);
+            if (itemsResult.success && itemsResult.data && itemsResult.data.Items) {
+                return itemsResult.data.Items;
+            } else {
+                throw new Error(`Failed to fetch items: ${itemsResult.status_code} ${itemsResult.status_text}`);
+            }
+        }
+
+        async function sendPostRequest(endpoint, data, method = "POST", token = "") {
+            let url = baseUrl + endpoint;
+            if(method == "GET" && data) {
+                const queryParams = new URLSearchParams(data).toString();
+                url += '?' + queryParams;
+            }
+            const jsonData = JSON.stringify(data);
+            
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `MediaBrowser ${token ? `Token="${token}", ` : ""}Client="Jellyfin Multiclient", Device="Web Browser", DeviceId="ZQ9YQHHrUzk24vV", Version="0.15.3"`
+            };
+
+            const options = {
+                method: method,
+                headers: headers,
+                body: method == "POST" ? jsonData : null,
+            };
+
+            try {
+                const response = await fetch(url, options);
+                
+                // Get response headers
+                const responseHeaders = {};
+                response.headers.forEach((value, key) => {
+                    responseHeaders[key] = value;
+                });
+
+                // Get response text
+                const responseText = await response.text();
+                
+                const result = {
+                    success: response.ok,
+                    status_code: response.status,
+                    status_text: response.statusText,
+                    headers: responseHeaders,
+                    raw_response: responseText,
+                    data: null,
+                    url: url,
+                    request_data: data
+                };
+
+                // Try to decode JSON response
+                if (responseText) {
+                    try {
+                        result.data = JSON.parse(responseText);
+                    } catch (e) {
+                        // Response is not valid JSON, keep as text
+                        console.log('Response is not valid JSON:', e);
+                    }
+                }
+
+                return result;
+
+            } catch (error) {
+                const result = {
+                    success: false,
+                    status_code: 0,
+                    status_text: error.message,
+                    headers: {},
+                    raw_response: '',
+                    data: null,
+                    url: url,
+                    request_data: data,
+                    error: error.message
+                };
+                return result;
+            }
+        }
+
+        async function authenticateAndFetchViews(username, password) {
+            const resultDiv = document.getElementById('result');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.textContent += baseUrl + '\nConnecting...\n';
+            submitBtn.disabled = true;
+
+            try {
+                // Step 1: Authenticate
+                const requestData = {
+                    'Username': username,
+                    'Pw': password
+                };
+
+                const authResult = await sendPostRequest('Users/AuthenticateByName', requestData);
+                
+                if (!authResult.success) {
+                    throw new Error(`Authentication failed: ${authResult.status_code} ${authResult.status_text}`);
+                }
+
+                const token = authResult.data?.AccessToken || '';
+                const userId = authResult.data?.User?.Id || '';
+                const userName = authResult.data?.User?.Name || '';
+                const serverId = authResult.data?.User?.ServerId || '';
+                
+                const serverInfo = await sendPostRequest('System/Info', {}, "GET", token);
+                if (serverInfo.data?.ServerName) {
+                    serverNames[serverId] = serverInfo.data.ServerName;
+                }
+                console.log(authResult);
+
+                if (!token || !userId || !serverId) {
+                    throw new Error('Failed to get access token or user ID from authentication response');
+                }
+
+                resultDiv.textContent += 'Authenticated successfully! Fetching user views...\n';
+                resultDiv.textContent += `User ID: ${userId}, Server ID: ${serverId}\n`;
+                resultDiv.textContent += `User Name: ${userName}, Server Name: ${serverInfo.data?.ServerName}\n`;
+
+                // Step 2: Get User Views
+                const viewsRequestData = {
+                    'userId': userId,
+                    'includeExternalContent': true,
+                    'presetViews': Object.keys(libraryTypeCollectionTypes),
+                    'includeHidden': true
+                };
+
+                const viewsResult = await sendPostRequest('UserViews', viewsRequestData, "GET", token);
+
+                // Display results
+                resultDiv.className = 'result success';
+                
+                let newContent = [];
+                for(var library of viewsResult.data.Items) {
+                    const libraryNameOriginal = library.Name;
+                    library.Name = library.Name + " (" + serverNames[serverId] + ")";
+                    let views = await getItemsFromParent(token, userId, library.Id);
+                    let items = views;
+                    if(libraryTypeCollectionTypes[library.CollectionType] !== "none") {
+                        let view = views.find(item => item.CollectionType === libraryTypeCollectionTypes[library.CollectionType]);
+                        if(!view || !libraryTypeCollectionTypes[library.CollectionType]) {
+                            resultDiv.textContent += `A library of type ${library.CollectionType} did not have a main content view. Available views: ${views.map(x => x.Name).join(",")}.\n`;
+                            continue;
+                        }
+                        items = await getItemsFromParent(token, userId, view.Id);
+                    }
+                    if (!items || items.length === 0) {
+                        resultDiv.textContent += `No items found for library: ${library.Name} (ID: ${library.Id}).<br>`;
+                        continue;
+                    }
+                    for (const item of items) {
+                        if(libraryTypeFilters[library.CollectionType] && !libraryTypeFilters[library.CollectionType].includes(item.Type)) {
+                            continue;
+                        }
+                        newContent.push({
+                            id: item.Id,
+                            name: item.Name,
+                            type: item.Type + (item.CollectionType ? ` (${item.CollectionType})` : ''),
+                            baseUrl: baseUrl,
+                            libraryName: library.Name,
+                            libraryNameOriginal: libraryNameOriginal,
+                            libraryId: serverId + ":" + library.Id
+                        });
+                    }
+                    resultDiv.textContent += `Fetched ${items.length} items from library: ${library.Name} (ID: ${library.Id}).\n`;
+                }
+                resultDiv.textContent += `Fetched ${newContent.length} items.\n\n`;
+                content.push(...newContent);
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent += `Error: ${error.message}`;
+            } finally {
+                submitBtn.disabled = false;
+            }
+        }
+        async function  mergeLibraries(lib1, lib2, name = "") {
+            const resultDiv = document.getElementById('result');
+            var name1 = content.find(x => x.libraryId === lib1)?.libraryName;
+            var name2 = content.find(x => x.libraryId === lib2)?.libraryName;
+            if(!name1 || !name2) {
+                resultDiv.textContent += `Error: One or both libraries not found for merging: ${lib1}, ${lib2}.\n`;
+                return;
+            }
+            resultDiv.textContent += `Merging library: ${name1} (ID: ${lib1})\n... into library: ${name2} (ID: ${lib2}).\n`;
+            for(var item of content) {
+                if(item.libraryId === lib1) {
+                    item.libraryId = lib2;
+                    item.libraryName = name.length > 0 ? name : name2;
+                }
+                if(item.libraryId === lib2) {
+                    item.libraryName = name.length > 0 ? name : name2;
+                }
+            }
+        }
+        async function rebuildContentList() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent += `Rebuilding content list with ${content.length} items.\n`;
+            const contentList = document.getElementById('contentList');
+            contentList.innerHTML = ''; // Clear existing content
+
+            if (content.length === 0) {
+                contentList.innerHTML = '<p>No content available.</p>';
+                return;
+            }
+            const libraries = {};
+            content.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'content-item';
+                itemDiv.innerHTML = `<img src="${item.baseUrl}Items/${item.id}/Images/Primary?fillWidth=128"><br><a title="${item.type}"><strong>${item.name}</strong></a><br><a href="${item.baseUrl}web/index.html#/details?id=${item.id}" target="_blank" data-item-json="${JSON.stringify(item)}">View</a>`;
+                itemDiv.dataset.name = item.name;
+                if (!libraries[item.libraryId]) {
+                    libraries[item.libraryId] = {
+                        name: item.libraryName,
+                        libraryNameOriginal: item.libraryNameOriginal,
+                        items: []
+                    };
+                }
+                libraries[item.libraryId].items.push(itemDiv);
+            });
+            for (const libraryId in libraries) {
+                const library = libraries[libraryId];
+                const libraryMain = document.createElement('div');
+                libraryMain.className = 'library-main';
+                const libraryHeader = document.createElement('h3');
+                const header = document.createElement('span');
+                let name = library.name;
+                let countWithName = Object.values(libraries).filter(lib => lib.libraryNameOriginal === library.libraryNameOriginal).length;
+                if (countWithName <= 1) {
+                    name = library.libraryNameOriginal;
+                }
+                header.textContent = `${name} (${library.items.length}) `;
+                header.style.cursor = "pointer";
+                header.addEventListener("click", () => {
+                    const libraryDiv = libraryHeader.nextElementSibling;
+                    if (libraryDiv.classList.contains('spoiler')) {
+                        libraryDiv.classList.toggle('open');
+                    }
+                });
+                libraryHeader.appendChild(header);
+                const link = document.createElement("span");
+                link.className = "link";
+                link.innerHTML = `<svg width="16px" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M7.05025 1.53553C8.03344 0.552348 9.36692 0 10.7574 0C13.6528 0 16 2.34721 16 5.24264C16 6.63308 15.4477 7.96656 14.4645 8.94975L12.4142 11L11 9.58579L13.0503 7.53553C13.6584 6.92742 14 6.10264 14 5.24264C14 3.45178 12.5482 2 10.7574 2C9.89736 2 9.07258 2.34163 8.46447 2.94975L6.41421 5L5 3.58579L7.05025 1.53553Z" fill="#000000" data-darkreader-inline-fill="" style="--darkreader-inline-fill: var(--darkreader-background-000000, #000000);"></path> <path d="M7.53553 13.0503L9.58579 11L11 12.4142L8.94975 14.4645C7.96656 15.4477 6.63308 16 5.24264 16C2.34721 16 0 13.6528 0 10.7574C0 9.36693 0.552347 8.03344 1.53553 7.05025L3.58579 5L5 6.41421L2.94975 8.46447C2.34163 9.07258 2 9.89736 2 10.7574C2 12.5482 3.45178 14 5.24264 14C6.10264 14 6.92742 13.6584 7.53553 13.0503Z" fill="#000000" data-darkreader-inline-fill="" style="--darkreader-inline-fill: var(--darkreader-background-000000, #000000);"></path> <path d="M5.70711 11.7071L11.7071 5.70711L10.2929 4.29289L4.29289 10.2929L5.70711 11.7071Z" fill="#000000" data-darkreader-inline-fill="" style="--darkreader-inline-fill: var(--darkreader-background-000000, #000000);"></path> </g></svg>`;
+                link.style.cursor = "pointer";
+                link.addEventListener("click", () => {
+                    if(linking == "") {
+                        linking = libraryId;
+                        document.querySelectorAll('.link svg').forEach(item => {
+                            item.classList.add('shaking');
+                        });
+                    } else {
+                        let line = "=" + linking + "=" + libraryId + "\n";
+                        document.getElementById('config').value += line;
+                        linking = "";
+                        document.querySelectorAll('.link svg').forEach(item => {
+                            item.classList.remove('shaking');
+                        });
+                    }
+                });
+                libraryHeader.appendChild(link);
+
+                libraryMain.appendChild(libraryHeader);
+                const libraryDiv = document.createElement('div');
+                libraryDiv.className = 'library spoiler';
+                library.items.sort((a, b) => a.dataset.name.localeCompare(b.dataset.name));
+                library.items.forEach(itemDiv => {
+                    libraryDiv.appendChild(itemDiv);
+                });
+                libraryMain.appendChild(libraryDiv);
+                contentList.appendChild(libraryMain);
+            }
+            if (contentList.children.length === 0) {
+                contentList.innerHTML = '<p>No content available.</p>';
+            } else {
+                resultDiv.textContent += `Content list rebuilt with ${contentList.children.length} libraries.\n`;
+                document.getElementById('main-spoiler').classList.remove('open');
+            }
+        }
+        function getBaseUrlSanitized(baseUrl) {
+            return baseUrl.replaceAll(/[^a-z0-9]/g, '');
+        }
+        function tryGetPassword(baseUrl) {
+            const cookie = `password-${getBaseUrlSanitized(baseUrl)}`;
+            const sanitizedBaseUrl = getBaseUrlSanitized(baseUrl);
+            const password = getCookie(cookie);
+            if (password) {
+                return password;
+            } else {
+                let passwd = prompt(`Enter password for ${baseUrl}`, '');
+                setCookie(cookie, passwd);
+                return passwd;
+            }
+        }
+        async function processConfig(e) {
+            e?.preventDefault();
+            contentList.innerHTML = ''; // Clear existing content
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = '';
+            content.length = 0; // Clear existing content
+            const config = document.getElementById('config').value.trim();
+            if (!config) {
+                alert('Please enter configuration');
+                return;
+            }
+            setCookie('config', config);
+            const lines = config.split('\n');
+            for (const line of lines) {
+                console.log(`Processing line: ${line}`);
+                console.log("Command: " + line.charAt(0));
+                if (line.startsWith('+')) {
+                    const parts = line.split('@');
+                    if (parts.length !== 2) {
+                        continue; // Skip invalid lines
+                    }
+                    const username = parts[0].substring(1).trim();
+                    baseUrl = parts[1].trim();
+                    const password = tryGetPassword(baseUrl);
+                    await authenticateAndFetchViews(username, password);
+                }
+                if (line.startsWith('=')) {
+                    const parts = line.split('=');
+                    if (parts.length !== 3 && parts.length !== 4) {
+                        continue; // Skip invalid lines
+                    }
+                    const library1 = parts[1].trim();
+                    const library2 = parts[2].trim();
+                    const name = parts[3] ? parts[3].trim() : "";
+                    await mergeLibraries(library1, library2, name);
+                }
+            }
+            await rebuildContentList();
+        }
+
+        // Form submission handler
+        document.getElementById('addServerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            baseUrl = document.getElementById('baseUrl').value.trim();
+            if (!baseUrl.endsWith('/')) {
+                baseUrl += '/';
+            }
+            let baseUrlSanitized = getBaseUrlSanitized(baseUrl); // Remove trailing slashes
+            
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+
+            if (!baseUrl || !username || !password) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            // authenticateAndFetchViews(username, password);
+
+            let line = `+${username}@${baseUrl}\n`
+            document.getElementById('config').value += line;
+            setCookie(`password-${baseUrlSanitized}`, password);
+        });
+        document.getElementById('configForm').addEventListener('submit', processConfig);
+
+        // Initialize base URL on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedConfig = getCookie('config');
+            if (savedConfig) {
+                document.getElementById('config').value = savedConfig;
+                processConfig();
+            }
+        });
+    </script>
+</body>
+</html>
