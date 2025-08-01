@@ -6,100 +6,469 @@
     <script src="https://kit.fontawesome.com/e9fe44bd19.js" crossorigin="anonymous"></script>
     <title>Jellyfin Multiclient</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        :root {
+        * {
+            margin: 0;
+            padding: 0;
             box-sizing: border-box;
-			interpolate-size: allow-keywords;
         }
-        .restricted {
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0e1a 0%, #1a1f2e 50%, #0f1419 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: rgba(16, 20, 30, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1400px;
             margin: 0 auto;
-            max-width: 800px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
-        .container {
-            background: white;
-            padding: 20px;
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #00a4dc;
+        }
+
+        .logo i {
+            font-size: 2rem;
+        }
+
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .admin-panel {
+            background: rgba(16, 20, 30, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .admin-panel.collapsed {
+            padding: 1rem 2rem;
+        }
+
+        .admin-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            margin-bottom: 1.5rem;
+        }
+
+        .admin-panel.collapsed .admin-header {
+            margin-bottom: 0;
+        }
+
+        .admin-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #00a4dc;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .collapse-icon {
+            transition: transform 0.3s ease;
+            color: #888;
+        }
+
+        .admin-panel.collapsed .collapse-icon {
+            transform: rotate(-90deg);
+        }
+
+        .admin-content {
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .admin-panel.collapsed .admin-content {
+            height: 0;
+            opacity: 0;
+            margin: 0;
+        }
+
+        .form-section {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-top: 20px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
         }
+
+        .form-section h3 {
+            color: #ffffff;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 1rem;
         }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
         label {
             display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: #cccccc;
+            font-weight: 500;
+            font-size: 0.9rem;
         }
-        input[type="password"], input[type="text"] {
+
+        input[type="text"], 
+        input[type="password"], 
+        textarea {
             width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: #ffffff;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
         }
-        button {
-            background-color: #007bff;
+
+        input[type="text"]:focus, 
+        input[type="password"]:focus, 
+        textarea:focus {
+            outline: none;
+            border-color: #00a4dc;
+            box-shadow: 0 0 0 3px rgba(0, 164, 220, 0.1);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        textarea {
+            font-family: 'Consolas', 'Monaco', monospace;
+            resize: vertical;
+            min-height: 200px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #00a4dc 0%, #0084b3 100%);
             color: white;
-            padding: 10px 20px;
+            padding: 0.75rem 1.5rem;
             border: none;
-            border-radius: 4px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
         }
-        button:hover {
-            background-color: #0056b3;
+
+        .btn:hover {
+            background: linear-gradient(135deg, #0084b3 0%, #006d94 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 164, 220, 0.3);
         }
-        button:disabled {
-            background-color: #ccc;
+
+        .btn:disabled {
+            background: #444;
             cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
+
+        .search-container {
+            background: rgba(16, 20, 30, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .search-input {
+            position: relative;
+        }
+
+        .search-input i {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #888;
+        }
+
+        .search-input input {
+            padding-left: 3rem;
+            font-size: 1rem;
+        }
+
+        .content-container {
+            background: rgba(16, 20, 30, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+        }
+
+        .content-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .content-header h2 {
+            color: #ffffff;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .library-main {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .library-main:last-child {
+            border-bottom: none;
+        }
+
+        .library-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.5rem 2rem;
+            background: rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .library-header:hover {
+            background: rgba(0, 164, 220, 0.1);
+        }
+
+        .library-title {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .library-count {
+            background: rgba(0, 164, 220, 0.2);
+            color: #00a4dc;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .library-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .link-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            color: #888;
+        }
+
+        .link-btn:hover {
+            background: rgba(0, 164, 220, 0.2);
+            color: #00a4dc;
+        }
+
+        .link-btn.shaking {
+            animation: tilt-shaking 0.25s infinite;
+            background: rgba(220, 53, 69, 0.2);
+            color: #dc3545;
+        }
+
+        .expand-icon {
+            transition: transform 0.3s ease;
+            color: #888;
+        }
+
+        .library.open + .library-header .expand-icon {
+            transform: rotate(90deg);
+        }
+
+        .library {
+            background: rgba(0, 0, 0, 0.1);
+            padding: 0;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            height: 0;
+        }
+
+        .library.open {
+            height: auto;
+            padding: 1.5rem 2rem 2rem;
+        }
+
+        .library-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 1.5rem;
+            padding: 0;
+        }
+
+        .content-item {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .content-item:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            border-color: rgba(0, 164, 220, 0.5);
+        }
+
+        .content-item.hidden {
+            display: none;
+        }
+
+        .item-image {
+            position: relative;
+            aspect-ratio: 2/3;
+            overflow: hidden;
+            background: linear-gradient(45deg, #1a1f2e, #2a2f3e);
+        }
+
+        .item-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .content-item:hover .item-image img {
+            transform: scale(1.05);
+        }
+
+        .item-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.7) 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            display: flex;
+            align-items: flex-end;
+            padding: 1rem;
+        }
+
+        .content-item:hover .item-overlay {
+            opacity: 1;
+        }
+
+        .play-btn {
+            background: rgba(0, 164, 220, 0.9);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .play-btn:hover {
+            background: #00a4dc;
+            transform: scale(1.1);
+        }
+
+        .item-info {
+            padding: 1rem;
+        }
+
+        .item-title {
+            color: #ffffff;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .item-type {
+            color: #888;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
         .result {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #f8f9fa;
-            border-radius: 4px;
-            border-left: 4px solid #007bff;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
             white-space: pre-wrap;
-            font-family: monospace;
             max-height: 400px;
             overflow-y: auto;
+            color: #cccccc;
         }
-        .error {
-            border-left-color: #dc3545;
-            background-color: #f8d7da;
-            color: #721c24;
+
+        .result.success {
+            border-color: rgba(40, 167, 69, 0.5);
+            background: rgba(40, 167, 69, 0.1);
         }
-        .success {
-            border-left-color: #28a745;
-            background-color: #d4edda;
-            color: #155724;
+
+        .result.error {
+            border-color: rgba(220, 53, 69, 0.5);
+            background: rgba(220, 53, 69, 0.1);
+            color: #ff6b6b;
         }
-        .content-item {
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            margin-bottom: 10px;
-            background-color: #f9f9f9;
-            width: 148px;
-            text-align: center;
+
+        .hidden {
+            display: none !important;
         }
-        .content-item a {
-            color: #007bff;
-            text-decoration: none;
-        }
-        .content-item a:hover {
-            text-decoration: underline;
-        }
-        .library {
-            margin-bottom: 20px;
-            display: flex;
-            flex-wrap: wrap;
-            flex-direction: row;
-        }
+
         @keyframes tilt-shaking {
             0% { transform: rotate(0deg); }
             25% { transform: rotate(15deg); }
@@ -107,69 +476,131 @@
             75% { transform: rotate(-15deg); }
             100% { transform: rotate(0deg); }
         }
-        .shaking {
-            animation: tilt-shaking 0.25s infinite;
-        }
-        .spoiler {
-            height: 0;
-            overflow: hidden;
-            transition: height 0.5s ease;
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
         }
 
-        .spoiler.open {
-            height: auto;
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
         }
-        .hidden {
-            display: none;
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 1rem;
+            }
+            
+            .header-content {
+                padding: 0 1rem;
+            }
+            
+            .library-grid {
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                gap: 1rem;
+            }
+            
+            .admin-panel, .search-container, .content-container {
+                margin-left: -1rem;
+                margin-right: -1rem;
+                border-radius: 0;
+                border-left: none;
+                border-right: none;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container restricted" onclick="document.getElementById('main-spoiler').classList.add('open');" style="cursor: pointer;">
-        <h1 style="margin:0;">Jellyfin Multiclient</h1>
-    </div>
-    <div class="spoiler open" id="main-spoiler">
-        <div class="container restricted">
-            <form id="addServerForm">
-                <div class="form-group">
-                    <label for="baseUrl">Base URL:</label>
-                    <input type="text" id="baseUrl" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="username">Username:</label>
-                    <input type="text" id="username" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="password">Password:</label>
-                    <input type="password" id="password" required>
-                </div>
-                
-                <button type="submit" id="submitBtnServer">Add Server Connection</button>
-            </form>
-            
-            <br>
-
-            <form id="configForm">
-                <div class="form-group">
-                    <label for="config">Configuration:</label>
-                    <textarea id="config" rows="12" style="width: 100%; background-color: #f5f5f5; border: 1px solid #ddd; border-radius: 4px;"></textarea>
-                </div>
-                <button type="submit" id="submitBtn">Load Content</button>
-            </form>
-            
-            <div id="result" class="result" style="display: none;"></div>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <i class="fas fa-play-circle"></i>
+                Jellyfin Multiclient
+            </div>
         </div>
-    </div>
-    <div class="container restricted">
-        <input type="text" id="searchInput" placeholder="Search content..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;" oninput="filterContent()">
-    </div>
+    </header>
 
-    <div id="contentList" class="content-list container" style="margin-top: 20px;">
-        <h2>Fetched Content</h2>
-        <!-- Content will be dynamically populated here -->
-        <p>No content available yet.</p>
+    <div class="main-container">
+        <div class="admin-panel" id="adminPanel">
+            <div class="admin-header" onclick="toggleAdminPanel()">
+                <div class="admin-title">
+                    <i class="fas fa-cog"></i>
+                    Server Configuration
+                </div>
+                <i class="fas fa-chevron-down collapse-icon"></i>
+            </div>
+            <div class="admin-content">
+                <div class="form-section">
+                    <h3><i class="fas fa-server"></i> Add Server Connection</h3>
+                    <form id="addServerForm">
+                        <div class="form-group">
+                            <label for="baseUrl">Server URL:</label>
+                            <input type="text" id="baseUrl" placeholder="https://your-jellyfin-server.com" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="username">Username:</label>
+                            <input type="text" id="username" placeholder="Enter your username" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="password">Password:</label>
+                            <input type="password" id="password" placeholder="Enter your password" required>
+                        </div>
+                        
+                        <button type="submit" class="btn" id="submitBtnServer">
+                            <i class="fas fa-plus"></i>
+                            Add Server
+                        </button>
+                    </form>
+                </div>
+
+                <div class="form-section">
+                    <h3><i class="fas fa-code"></i> Advanced Configuration</h3>
+                    <form id="configForm">
+                        <div class="form-group">
+                            <label for="config">Configuration Script:</label>
+                            <textarea id="config" placeholder="Enter configuration commands here..."></textarea>
+                        </div>
+                        <button type="submit" class="btn" id="submitBtn">
+                            <i class="fas fa-play"></i>
+                            Load Content
+                        </button>
+                    </form>
+                </div>
+                
+                <div id="result" class="result" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="search-container">
+            <div class="search-input">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="Search your media library..." oninput="filterContent()">
+            </div>
+        </div>
+
+        <div class="content-container">
+            <div class="content-header">
+                <h2><i class="fas fa-film"></i> Media Libraries</h2>
+            </div>
+            <div id="contentList" class="content-list">
+                <div style="padding: 3rem; text-align: center; color: #888;">
+                    <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                    <p>No content available yet. Configure your servers above to get started.</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -190,10 +621,14 @@
         const libraryTypeFilters = {
             "music": ["MusicAlbum"]
         };
-        const content = [
-
-        ];
+        const content = [];
         const serverNames = {};
+
+        function toggleAdminPanel() {
+            const panel = document.getElementById('adminPanel');
+            panel.classList.toggle('collapsed');
+        }
+
         function setCookie(cname, cvalue, exdays = 365) {
             const d = new Date();
             d.setTime(d.getTime() + (exdays * 24 * 60 * 60 * 1000));
@@ -218,7 +653,7 @@
                 }
             }
             return "";
-    	}
+        }
 
         function filterContent() {
             const searchInput = document.getElementById('searchInput').value.toLowerCase();
@@ -233,14 +668,12 @@
                 }
             });
             if(searchInput != "") {
-                document.querySelectorAll('.library.spoiler').forEach(item => {
-                    if(!item.classList.contains('open')) {
-                        item.classList.add('open');
-                        item.classList.add('temp-open');
-                    }
+                document.querySelectorAll('.library:not(.open)').forEach(item => {
+                    item.classList.add('open');
+                    item.classList.add('temp-open');
                 });
             } else {
-                document.querySelectorAll('.spoiler.temp-open').forEach(item => {
+                document.querySelectorAll('.library.temp-open').forEach(item => {
                     item.classList.remove('open');
                     item.classList.remove('temp-open');
                 });
@@ -434,7 +867,8 @@
                 submitBtn.disabled = false;
             }
         }
-        async function  mergeLibraries(lib1, lib2, name = "") {
+
+        async function mergeLibraries(lib1, lib2, name = "") {
             const resultDiv = document.getElementById('result');
             var name1 = content.find(x => x.libraryId === lib1)?.libraryName;
             var name2 = content.find(x => x.libraryId === lib2)?.libraryName;
@@ -453,6 +887,7 @@
                 }
             }
         }
+
         async function rebuildContentList() {
             const resultDiv = document.getElementById('result');
             resultDiv.textContent += `Rebuilding content list with ${content.length} items.\n`;
@@ -460,15 +895,17 @@
             contentList.innerHTML = ''; // Clear existing content
 
             if (content.length === 0) {
-                contentList.innerHTML = '<p>No content available.</p>';
+                contentList.innerHTML = `
+                    <div style="padding: 3rem; text-align: center; color: #888;">
+                        <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                        <p>No content available yet. Configure your servers above to get started.</p>
+                    </div>
+                `;
                 return;
             }
+
             const libraries = {};
             content.forEach(item => {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'content-item';
-                itemDiv.innerHTML = `<img src="${item.baseUrl}Items/${item.id}/Images/Primary?fillWidth=128"><br><a title="${item.type}"><strong>${item.name}</strong></a><br><a href="${item.baseUrl}web/index.html#/details?id=${item.id}" target="_blank" data-item-json="${JSON.stringify(item)}">View</a>`;
-                itemDiv.dataset.name = item.name;
                 if (!libraries[item.libraryId]) {
                     libraries[item.libraryId] = {
                         name: item.libraryName,
@@ -476,69 +913,130 @@
                         items: []
                     };
                 }
-                libraries[item.libraryId].items.push(itemDiv);
+                libraries[item.libraryId].items.push(item);
             });
+
             for (const libraryId in libraries) {
                 const library = libraries[libraryId];
                 const libraryMain = document.createElement('div');
                 libraryMain.className = 'library-main';
-                const libraryHeader = document.createElement('h3');
-                const header = document.createElement('span');
+
+                const libraryHeader = document.createElement('div');
+                libraryHeader.className = 'library-header';
+                
+                const titleSection = document.createElement('div');
+                titleSection.className = 'library-title';
+                titleSection.style.cursor = 'pointer';
+                
                 let name = library.name;
                 let countWithName = Object.values(libraries).filter(lib => lib.libraryNameOriginal === library.libraryNameOriginal).length;
                 if (countWithName <= 1) {
                     name = library.libraryNameOriginal;
                 }
-                header.textContent = `${name} (${library.items.length}) `;
-                header.style.cursor = "pointer";
-                header.addEventListener("click", () => {
-                    const libraryDiv = libraryHeader.nextElementSibling;
-                    if (libraryDiv.classList.contains('spoiler')) {
-                        libraryDiv.classList.toggle('open');
-                    }
-                });
-                libraryHeader.appendChild(header);
-                const link = document.createElement("span");
-                link.className = "link";
-                link.innerHTML = `<svg width="16px" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M7.05025 1.53553C8.03344 0.552348 9.36692 0 10.7574 0C13.6528 0 16 2.34721 16 5.24264C16 6.63308 15.4477 7.96656 14.4645 8.94975L12.4142 11L11 9.58579L13.0503 7.53553C13.6584 6.92742 14 6.10264 14 5.24264C14 3.45178 12.5482 2 10.7574 2C9.89736 2 9.07258 2.34163 8.46447 2.94975L6.41421 5L5 3.58579L7.05025 1.53553Z" fill="#000000" data-darkreader-inline-fill="" style="--darkreader-inline-fill: var(--darkreader-background-000000, #000000);"></path> <path d="M7.53553 13.0503L9.58579 11L11 12.4142L8.94975 14.4645C7.96656 15.4477 6.63308 16 5.24264 16C2.34721 16 0 13.6528 0 10.7574C0 9.36693 0.552347 8.03344 1.53553 7.05025L3.58579 5L5 6.41421L2.94975 8.46447C2.34163 9.07258 2 9.89736 2 10.7574C2 12.5482 3.45178 14 5.24264 14C6.10264 14 6.92742 13.6584 7.53553 13.0503Z" fill="#000000" data-darkreader-inline-fill="" style="--darkreader-inline-fill: var(--darkreader-background-000000, #000000);"></path> <path d="M5.70711 11.7071L11.7071 5.70711L10.2929 4.29289L4.29289 10.2929L5.70711 11.7071Z" fill="#000000" data-darkreader-inline-fill="" style="--darkreader-inline-fill: var(--darkreader-background-000000, #000000);"></path> </g></svg>`;
-                link.style.cursor = "pointer";
-                link.addEventListener("click", () => {
+                
+                titleSection.innerHTML = `
+                    <i class="fas fa-folder"></i>
+                    ${name}
+                    <span class="library-count">${library.items.length}</span>
+                `;
+                
+                const actionsSection = document.createElement('div');
+                actionsSection.className = 'library-actions';
+                
+                const linkBtn = document.createElement('button');
+                linkBtn.className = 'link-btn';
+                linkBtn.innerHTML = '<i class="fas fa-link"></i>';
+                linkBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
                     if(linking == "") {
                         linking = libraryId;
-                        document.querySelectorAll('.link svg').forEach(item => {
+                        document.querySelectorAll('.link-btn').forEach(item => {
                             item.classList.add('shaking');
                         });
                     } else {
                         let line = "=" + linking + "=" + libraryId + "\n";
                         document.getElementById('config').value += line;
                         linking = "";
-                        document.querySelectorAll('.link svg').forEach(item => {
+                        document.querySelectorAll('.link-btn').forEach(item => {
                             item.classList.remove('shaking');
                         });
                     }
                 });
-                libraryHeader.appendChild(link);
-
-                libraryMain.appendChild(libraryHeader);
+                
+                const expandIcon = document.createElement('i');
+                expandIcon.className = 'fas fa-chevron-right expand-icon';
+                
+                actionsSection.appendChild(linkBtn);
+                actionsSection.appendChild(expandIcon);
+                
+                libraryHeader.appendChild(titleSection);
+                libraryHeader.appendChild(actionsSection);
+                
                 const libraryDiv = document.createElement('div');
-                libraryDiv.className = 'library spoiler';
-                library.items.sort((a, b) => a.dataset.name.localeCompare(b.dataset.name));
-                library.items.forEach(itemDiv => {
-                    libraryDiv.appendChild(itemDiv);
+                libraryDiv.className = 'library';
+                
+                const libraryGrid = document.createElement('div');
+                libraryGrid.className = 'library-grid';
+                
+                // Sort items alphabetically
+                library.items.sort((a, b) => a.name.localeCompare(b.name));
+                
+                library.items.forEach(item => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'content-item';
+                    itemDiv.dataset.name = item.name;
+                    
+                    itemDiv.innerHTML = `
+                        <div class="item-image">
+                            <img src="${item.baseUrl}Items/${item.id}/Images/Primary?fillWidth=160&fillHeight=240&quality=90" 
+                                 alt="${item.name}" 
+                                 onerror="this.style.display='none'; this.parentElement.style.background='linear-gradient(45deg, #1a1f2e, #2a2f3e)'; this.parentElement.innerHTML='<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;color:#666;\\'>No Image</div>';">
+                            <div class="item-overlay">
+                                <button class="play-btn" onclick="window.open('${item.baseUrl}web/index.html#/details?id=${item.id}', '_blank')">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="item-info">
+                            <div class="item-title" title="${item.name}">${item.name}</div>
+                            <div class="item-type">${item.type}</div>
+                        </div>
+                    `;
+                    
+                    libraryGrid.appendChild(itemDiv);
                 });
+                
+                libraryDiv.appendChild(libraryGrid);
+                
+                // Add click handler to toggle library
+                libraryHeader.addEventListener('click', (e) => {
+                    if (!e.target.closest('.link-btn')) {
+                        libraryDiv.classList.toggle('open');
+                    }
+                });
+                
+                libraryMain.appendChild(libraryHeader);
                 libraryMain.appendChild(libraryDiv);
                 contentList.appendChild(libraryMain);
             }
+
             if (contentList.children.length === 0) {
-                contentList.innerHTML = '<p>No content available.</p>';
+                contentList.innerHTML = `
+                    <div style="padding: 3rem; text-align: center; color: #888;">
+                        <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                        <p>No content available.</p>
+                    </div>
+                `;
             } else {
                 resultDiv.textContent += `Content list rebuilt with ${contentList.children.length} libraries.\n`;
-                document.getElementById('main-spoiler').classList.remove('open');
+                document.getElementById('adminPanel').classList.add('collapsed');
             }
         }
+
         function getBaseUrlSanitized(baseUrl) {
             return baseUrl.replaceAll(/[^a-z0-9]/g, '');
         }
+
         function tryGetPassword(baseUrl) {
             const cookie = `password-${getBaseUrlSanitized(baseUrl)}`;
             const sanitizedBaseUrl = getBaseUrlSanitized(baseUrl);
@@ -551,9 +1049,10 @@
                 return passwd;
             }
         }
+
         async function processConfig(e) {
             e?.preventDefault();
-            contentList.innerHTML = ''; // Clear existing content
+            document.getElementById('contentList').innerHTML = ''; // Clear existing content
             const resultDiv = document.getElementById('result');
             resultDiv.textContent = '';
             content.length = 0; // Clear existing content
@@ -609,12 +1108,16 @@
                 return;
             }
 
-            // authenticateAndFetchViews(username, password);
-
             let line = `+${username}@${baseUrl}\n`
             document.getElementById('config').value += line;
             setCookie(`password-${baseUrlSanitized}`, password);
+            
+            // Clear the form
+            document.getElementById('baseUrl').value = '';
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
         });
+
         document.getElementById('configForm').addEventListener('submit', processConfig);
 
         // Initialize base URL on page load
